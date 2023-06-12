@@ -32,6 +32,30 @@ practice recommendation.
 
 ## External Packages Used
 
-[`logrus`](github.com/sirupsen/logrus)
+[`logrus`](github.com/sirupsen/logrus) - logging
 
-[`jwt`](github.com/golang-jwt/jwt/v5)
+[`jwt`](github.com/golang-jwt/jwt/v5) - JSON Web Tokens implementation 
+
+[`mux`](github.com/gorilla/mux) - router
+
+[`handlers`](github.com/gorilla/handlers) - CORS
+
+[`http-swagger`](github.com/swaggo/http-swagger) - Swagger documentation
+
+## Configuration
+
+The following environment variables allows customization of the server:
+
+* `JWT_TOKEN_SECRET` - it is the key used to generate tokens. If not provided, we use random generated key.
+
+* `JWT_TOKEN_DURATION` - expiration of the tokens in hours. Default to 8 hours.
+
+* `JWT_SIGNING_METHOD` - default method used to sign tokens.
+
+* `ALLOWED_CORS_URL` - URLs of a possible frontend (SPA) application that would be allowed to use this server.
+
+* `ALLOWED_CORS_HEADERS` - All possible request headers that the SPA can use in requesting this server.
+
+* `ALLOW_PPROF` - If set to "true", opens routes to pprof the server.
+
+* `APP_HTTP_PORT` - Defaults to 8080, but we allow customization.

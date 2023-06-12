@@ -1,0 +1,12 @@
+host: localhost:8080
+info:
+  contact: {}
+  description: This is API server.
+  termsOfService: http://swagger.io/terms/
+  title: OAuth 2 Server
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
