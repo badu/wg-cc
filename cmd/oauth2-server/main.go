@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/badu/wg-cc/app/login"
 	"github.com/badu/wg-cc/pkg/runner"
 	"github.com/badu/wg-cc/pkg/signal"
 )
@@ -128,9 +129,6 @@ func main() {
 		jwtSecret = []byte(os.Getenv(JWT_TOKEN_SECRET))
 	}
 
-	// temporary, will be passed to service
-	_ = jwtSecret
-
 	jwtDurationStr := os.Getenv(JWT_TOKEN_DURATION)
 	if len(jwtDurationStr) == 0 {
 		jwtDurationStr = defaultJWTDurationStr
@@ -210,6 +208,10 @@ func main() {
 	}
 
 	ctx := context.Background()
+
+	loginRepo := login.NewRepository()
+	loginSvc := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour)
+	login.RegisterRoutes(router, &loginSvc, Logger, Recover)
 
 	var group runner.Group
 	group.Add(func() error {
