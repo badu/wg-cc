@@ -32,15 +32,15 @@ practice recommendation.
 
 ## External Packages Used
 
-[`logrus`](github.com/sirupsen/logrus) - logging
+[`logrus`](https://github.com/sirupsen/logrus) - logging
 
-[`jwt`](github.com/golang-jwt/jwt/v5) - JSON Web Tokens implementation 
+[`jwt`](https://github.com/golang-jwt/jwt/v5) - JSON Web Tokens implementation 
 
-[`mux`](github.com/gorilla/mux) - router
+[`mux`](https://github.com/gorilla/mux) - router
 
-[`handlers`](github.com/gorilla/handlers) - CORS
+[`handlers`](https://github.com/gorilla/handlers) - CORS
 
-[`http-swagger`](github.com/swaggo/http-swagger) - Swagger documentation
+[`http-swagger`](https://github.com/swaggo/http-swagger) - Swagger documentation
 
 ## Configuration
 

@@ -34,7 +34,7 @@ const (
 	SERVER_PORT           = "APP_HTTP_PORT"
 	defaultJWTDurationStr = "8" // in hours
 
-	defaultJWTSignMethod = "HS256" // default signing method is jwt.SigningMethodHS256
+	defaultJWTSignMethod = login.HS256 // default signing method is jwt.SigningMethodHS256. other available options are jwt.SigningMethodHS384 and jwt.SigningMethodHS512
 
 	HeaderContentTypeValue = "application/json; charset=UTF-8"
 	HeaderContentType      = "Content-Type"
@@ -176,7 +176,7 @@ func main() {
 		},
 	)
 
-	// default method not allowed handler
+	// default method for not allowed handler
 	router.MethodNotAllowedHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("METHOD '%s' NOT ALLOWED requesting %q", r.Method, r.URL.Path)
@@ -210,8 +210,11 @@ func main() {
 	ctx := context.Background()
 
 	loginRepo := login.NewRepository()
-	loginSvc := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour)
-	login.RegisterRoutes(router, &loginSvc, Logger, Recover)
+	loginSvc, err := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour, jwtSignMethod)
+	if err != nil {
+		log.Fatalf("error creating service : %#v", err)
+	}
+	login.RegisterRoutes(router, loginSvc, Logger, Recover)
 
 	var group runner.Group
 	group.Add(func() error {
