@@ -76,7 +76,7 @@ func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
 	claims["exp"] = now.Add(s.tokenExpiration).Unix() // The expiration time after which the token must be disregarded.
 	claims["iat"] = now.Unix()                        // The time at which the token was issued.
 	claims["nbf"] = now.Unix()                        // The time before which the token must be disregarded.
-
+	claims["scope"] = "read"                          // test scope, just to have something
 	// sign the token with the secret key
 	tokenString, err := token.SignedString(s.secretKey)
 	if err != nil {

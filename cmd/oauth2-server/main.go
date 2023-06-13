@@ -27,6 +27,8 @@ import (
 	"github.com/badu/wg-cc/pkg/signal"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	_ "github.com/badu/wg-cc/docs" // required for Swagger
 )
 
 const (

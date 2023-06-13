@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	TokenRoute = "/v1/oauth2/token"
-	ListRoute  = "/v1/oauth2/keys"
+	TokenRoute      = "/v1/oauth2/token"
+	ListRoute       = "/v1/oauth2/keys"
+	IntrospectRoute = "/v1/oauth2/introspect"
 )
 
 type Service interface {
@@ -91,9 +92,9 @@ func IssueToken(svc Service) http.Handler {
 	})
 }
 
-// ListTokens godoc
-// @ID list-token
-// @Summary lists issued JWT Access Tokens
+// ListRSAKeys godoc
+// @ID list-keys
+// @Summary endpoint to list the signing keys (rfc7517)
 // @Description
 // @Tags token
 // @Produce json
@@ -101,9 +102,8 @@ func IssueToken(svc Service) http.Handler {
 // @Success 200 {object} KeysResponse
 // @Failure 400,401
 // @Failure 500
-// @Router /v1/oauth2/tokens [get]
-
-func ListTokens(svc Service) http.Handler {
+// @Router /v1/oauth2/keys [get]
+func ListRSAKeys(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -148,6 +148,71 @@ func ListTokens(svc Service) http.Handler {
 	})
 }
 
+// Introspect godoc
+// @ID introspect-jwt
+// @Summary Introspection endpoint (rfc7662) to introspect the issued JWT Access Tokens
+// @Description
+// @Tags token
+// @Produce json
+// @Security
+// @Success 200 {object} IntrospectionResponse
+// @Failure 400,401
+// @Failure 500
+// @Router /v1/oauth2/introspect [get]
+func Introspect(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprintf(w, "Bad request")
+			return
+		}
+
+		// Extract token from request headers or cookies
+		tokenString := r.Header.Get("Authorization")
+
+		if len(tokenString) == 0 {
+			cookie, err := r.Cookie("jwt_token")
+			if err == nil {
+				tokenString = cookie.Value
+			}
+		}
+
+		if len(tokenString) == 0 {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, "Unauthorized")
+			return
+		}
+
+		// Parse and validate the token
+		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
+
+		// use service to decode our token
+		token, err := svc.DecodeJWTToken(tokenString)
+
+		var response IntrospectionResponse
+		if err == nil {
+			// Verify if the token is valid and not expired
+			if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+				response = IntrospectionResponse{Active: true}
+				if scope, has := claims["scope"]; has {
+					if scopeStr, ok := scope.(string); ok {
+						response.Scope = scopeStr
+					}
+				}
+				if expires, has := claims["exp"]; has {
+					if expireFloat, ok := expires.(float64); ok {
+						response.ExpiresAt = int64(expireFloat)
+					}
+				}
+			}
+		}
+
+		// Send the response as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+}
+
 func RegisterRoutes(
 	router *mux.Router,
 	svc Service,
@@ -171,8 +236,20 @@ func RegisterRoutes(
 		Handler(
 			recoverer(
 				logger(
-					ListTokens(svc), ListRoute,
+					ListRSAKeys(svc), ListRoute,
 				),
 			),
 		)
+
+	router.Methods(http.MethodGet).
+		Path(IntrospectRoute).
+		Name("IntrospectRoute").
+		Handler(
+			recoverer(
+				logger(
+					Introspect(svc), IntrospectRoute,
+				),
+			),
+		)
+
 }

@@ -1,3 +1,40 @@
+definitions:
+  login.IntrospectionResponse:
+    properties:
+      active:
+        type: boolean
+      exp:
+        type: integer
+      scope:
+        type: string
+    type: object
+  login.KeysResponse:
+    properties:
+      keys:
+        items:
+          $ref: '#/definitions/login.SignKey'
+        type: array
+    type: object
+  login.SignKey:
+    properties:
+      algorithm:
+        type: string
+      key_id:
+        type: string
+      public_key:
+        type: string
+      use:
+        type: string
+    type: object
+  login.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      token_type:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -5,7 +42,72 @@ info:
   termsOfService: http://swagger.io/terms/
   title: OAuth 2 Server
   version: "1.0"
-paths: {}
+paths:
+  /v1/oauth2/introspect:
+    get:
+      operationId: introspect-jwt
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/login.IntrospectionResponse'
+        "400":
+          description: ""
+        "401":
+          description: ""
+        "500":
+          description: ""
+      security:
+      - "": []
+      summary: Introspection endpoint (rfc7662) to introspect the issued JWT Access
+        Tokens
+      tags:
+      - token
+  /v1/oauth2/keys:
+    get:
+      operationId: list-keys
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/login.KeysResponse'
+        "400":
+          description: ""
+        "401":
+          description: ""
+        "500":
+          description: ""
+      security:
+      - "": []
+      summary: endpoint to list the signing keys (rfc7517)
+      tags:
+      - token
+  /v1/oauth2/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: create-token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/login.TokenResponse'
+        "400":
+          description: ""
+        "401":
+          description: ""
+        "500":
+          description: ""
+      summary: issues JWT Access Tokens (rfc7519) using Client Credentials Grant with
+        Basic Authentication (rfc6749)
+      tags:
+      - token
 securityDefinitions:
   BasicAuth:
     type: basic

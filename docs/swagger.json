@@ -8,7 +8,166 @@
         "version": "1.0"
     },
     "host": "localhost:8080",
-    "paths": {},
+    "paths": {
+        "/v1/oauth2/introspect": {
+            "get": {
+                "security": [
+                    {
+                        "": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Introspection endpoint (rfc7662) to introspect the issued JWT Access Tokens",
+                "operationId": "introspect-jwt",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/login.IntrospectionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": ""
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/v1/oauth2/keys": {
+            "get": {
+                "security": [
+                    {
+                        "": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "endpoint to list the signing keys (rfc7517)",
+                "operationId": "list-keys",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/login.KeysResponse"
+                        }
+                    },
+                    "400": {
+                        "description": ""
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/v1/oauth2/token": {
+            "post": {
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "issues JWT Access Tokens (rfc7519) using Client Credentials Grant with Basic Authentication (rfc6749)",
+                "operationId": "create-token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/login.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": ""
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "login.IntrospectionResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "exp": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "login.KeysResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/login.SignKey"
+                    }
+                }
+            }
+        },
+        "login.SignKey": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "key_id": {
+                    "type": "string"
+                },
+                "public_key": {
+                    "type": "string"
+                },
+                "use": {
+                    "type": "string"
+                }
+            }
+        },
+        "login.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "token_type": {
+                    "type": "string"
+                }
+            }
+        }
+    },
     "securityDefinitions": {
         "BasicAuth": {
             "type": "basic"
