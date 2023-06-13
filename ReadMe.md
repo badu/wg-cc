@@ -59,3 +59,29 @@ The following environment variables allows customization of the server:
 * `ALLOW_PPROF` - If set to "true", opens routes to pprof the server.
 
 * `APP_HTTP_PORT` - Defaults to 8080, but we allow customization.
+
+## Kubernetes & Docker
+
+build the container image, in the root of this project:
+
+`docker build . -t oauth-server:1.0.0 -f ./cmd/oauth2-server/Dockerfile`
+
+Running the built image:
+
+`docker run -p 8080:8080 oauth-server:1.0.0`
+
+You can now run integration test if you like.
+
+
+
+Apply the deployment and service manifests using the following commands:
+
+`kubectl apply -f deployment.yaml`
+
+`kubectl apply -f service.yaml`
+
+Use the following command to retrieve the external IP:
+
+`kubectl get services`
+
+Look for the EXTERNAL-IP column of the oauth2-server 

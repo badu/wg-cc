@@ -41,7 +41,7 @@ const (
 	SERVER_PORT           = "APP_HTTP_PORT"
 	defaultJWTDurationStr = "8" // in hours
 
-	defaultJWTSignMethod = login.RS256 // default signing method is jwt.SigningMethodHS256. other available options are jwt.SigningMethodHS384 and jwt.SigningMethodHS512
+	defaultJWTSignMethod = login.RS256 // default signing method is jwt.SigningMethodRS256. other available options are jwt.SigningMethodRS384 and jwt.SigningMethodRS512
 
 	HeaderContentTypeValue = "application/json; charset=UTF-8"
 	HeaderContentType      = "Content-Type"
