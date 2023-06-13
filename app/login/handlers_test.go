@@ -1,6 +1,8 @@
 package login_test
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,14 +10,21 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/badu/wg-cc/app/login"
 )
 
 func TestGenerateToken(t *testing.T) {
+	hashedSecret, err := bcrypt.GenerateFromPassword([]byte("test"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("error hashing secret: %#v", err)
+	}
+
 	payload := url.Values{
 		"grant_type":    {"client_credentials"},
 		"client_id":     {"test"},
-		"client_secret": {"test"},
+		"client_secret": {string(hashedSecret)},
 	}
 	req, err := http.NewRequest(http.MethodPost, login.TokenRoute, nil)
 	if err != nil {
@@ -25,8 +34,9 @@ func TestGenerateToken(t *testing.T) {
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
-	mockedRepo := login.NewMock(true)
-	service, err := login.NewService(&mockedRepo, []byte(`test`), time.Duration(8)*time.Hour, login.HS256)
+	mockedRepo := login.NewMock("valid-client-id")
+	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	service, err := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 	if err != nil {
 		t.Fatalf("service creation error : %#v", err)
 	}
@@ -51,9 +61,12 @@ func TestGenerateToken(t *testing.T) {
 		t.Errorf("Expected `Bearer`, but got %q", response.TokenType)
 	}
 
-	if response.ExpiresIn != int64(time.Duration(8)*time.Hour) {
-		t.Errorf("Expected expires in 8 hours, but got %d", response.ExpiresIn)
+	if response.ExpiresIn != 28800 {
+		t.Errorf("Expected expires in 8 hours (28800 seconds), but got %d seconds", response.ExpiresIn)
 	}
+
+	t.Logf("token : %q", response.AccessToken)
+	t.Logf("expires in : %d", response.ExpiresIn)
 }
 
 func TestFailGenerateToken(t *testing.T) {
@@ -70,8 +83,9 @@ func TestFailGenerateToken(t *testing.T) {
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
-	mockedRepo := login.NewMock(false)
-	service, err := login.NewService(&mockedRepo, []byte(`test`), time.Duration(8)*time.Hour, login.HS256)
+	mockedRepo := login.NewMock("")
+	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	service, err := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 	if err != nil {
 		t.Fatalf("service creation error : %#v", err)
 	}

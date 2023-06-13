@@ -46,11 +46,11 @@ practice recommendation.
 
 The following environment variables allows customization of the server:
 
-* `JWT_TOKEN_SECRET` - it is the key used to generate tokens. If not provided, we use random generated key.
+* `JWT_PRIVATE_KEY` - it is the private key used to generate tokens. If not provided, we use generated key.
 
 * `JWT_TOKEN_DURATION` - expiration of the tokens in hours. Default to 8 hours.
 
-* `JWT_SIGNING_METHOD` - default method used to sign tokens.
+* `JWT_SIGNING_METHOD` - default method used to sign tokens. Valid methods are RS384, RS512 and RS256. RS256 is default. 
 
 * `ALLOWED_CORS_URL` - URLs of a possible frontend (SPA) application that would be allowed to use this server.
 

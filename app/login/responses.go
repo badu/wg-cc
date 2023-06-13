@@ -7,11 +7,11 @@ type TokenResponse struct {
 }
 
 type IntrospectionResponse struct {
-	Active    bool   `json:"active"`
 	Scope     string `json:"scope"`
 	ClientID  string `json:"client_id"`
-	ExpiresAt int64  `json:"exp"`
 	TokenType string `json:"token_type"`
+	ExpiresIn int64  `json:"expires_in"`
+	Active    bool   `json:"active"`
 }
 
 type Key struct {

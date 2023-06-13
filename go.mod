@@ -6,9 +6,11 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/sirupsen/logrus v1.9.3
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.1
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 )
 
 require (

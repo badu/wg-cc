@@ -1,13 +1,22 @@
 package login
 
+import (
+	"golang.org/x/crypto/bcrypt"
+)
+
 type RepoMock struct {
-	clientFound bool
+	clientFound string
 }
 
-func NewMock(clientFound bool) RepoMock {
+func NewMock(clientFound string) RepoMock {
 	return RepoMock{clientFound: clientFound}
 }
 
-func (r *RepoMock) Verify(clientID, clientSecret string) (bool, error) {
-	return r.clientFound, nil
+func (r *RepoMock) Verify(clientID, clientSecret string) (string, error) {
+	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte(r.clientFound), bcrypt.DefaultCost)
+	return string(hashedSecret), nil
+}
+
+func (r *RepoMock) Insert(clientID, accessToken, tokenType string, expiresIn int64) error {
+	return nil
 }

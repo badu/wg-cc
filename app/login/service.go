@@ -1,32 +1,36 @@
 package login
 
 import (
+	"crypto/rsa"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	HS384 = "HS384"
-	HS512 = "HS512"
-	HS256 = "HS256"
+	RS384 = "RS384"
+	RS512 = "RS512"
+	RS256 = "RS256"
 )
 
 type Repository interface {
-	Verify(clientID, clientSecret string) (bool, error)
+	Verify(clientID, clientSecret string) (string, error)
+	Insert(clientID, accessToken, tokenType string, expiresIn int64) error
 }
 
 type SvcImpl struct {
 	repo            Repository
-	secretKey       []byte
+	secretKey       *rsa.PrivateKey
 	tokenExpiration time.Duration
-	signingMethod   *jwt.SigningMethodHMAC
+	signingMethod   *jwt.SigningMethodRSA
 }
 
 func NewService(
 	repo Repository,
-	secret []byte,
+	secret *rsa.PrivateKey,
 	expiration time.Duration,
 	signMethod string,
 ) (*SvcImpl, error) {
@@ -37,12 +41,12 @@ func NewService(
 	}
 
 	switch signMethod {
-	case HS384:
-		result.signingMethod = jwt.SigningMethodHS384
-	case HS512:
-		result.signingMethod = jwt.SigningMethodHS512
-	case HS256:
-		result.signingMethod = jwt.SigningMethodHS256
+	case RS384:
+		result.signingMethod = jwt.SigningMethodRS384
+	case RS512:
+		result.signingMethod = jwt.SigningMethodRS512
+	case RS256:
+		result.signingMethod = jwt.SigningMethodRS256
 	default:
 		return nil, errors.New("unknown signing method")
 	}
@@ -51,13 +55,14 @@ func NewService(
 }
 
 func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
-	has, err := s.repo.Verify(clientID, clientSecret)
+	hashedSecret, err := s.repo.Verify(clientID, clientSecret)
 	if err != nil {
 		return nil, err
 	}
 
-	if !has {
-		return nil, NotFoundError
+	err = bcrypt.CompareHashAndPassword([]byte(hashedSecret), []byte(clientSecret))
+	if err != nil {
+		return nil, err
 	}
 
 	// generate the access token
@@ -72,10 +77,16 @@ func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
 		return nil, err
 	}
 
-	// the token response
-	return &TokenResponse{
+	result := TokenResponse{
 		AccessToken: tokenString,
 		TokenType:   "Bearer",
-		ExpiresIn:   int64(s.tokenExpiration),
-	}, nil
+		ExpiresIn:   int64(s.tokenExpiration.Seconds()),
+	}
+
+	if err := s.repo.Insert(clientID, result.AccessToken, result.TokenType, result.ExpiresIn); err != nil {
+		log.Printf("non fatal error inserting key into database : %#v", err)
+	}
+
+	// the token response
+	return &result, nil
 }

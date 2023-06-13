@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -22,11 +25,13 @@ import (
 	"github.com/badu/wg-cc/app/login"
 	"github.com/badu/wg-cc/pkg/runner"
 	"github.com/badu/wg-cc/pkg/signal"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
 	JWT_TOKEN_DURATION    = "JWT_TOKEN_DURATION"
-	JWT_TOKEN_SECRET      = "JWT_TOKEN_SECRET"
+	JWT_PRIVATE_KEY       = "JWT_PRIVATE_KEY"
 	JWT_SIGNING_METHOD    = "JWT_SIGNING_METHOD"
 	ALLOWED_CORS_URL      = "ALLOWED_CORS_URL"
 	ALLOWED_CORS_HEADERS  = "ALLOWED_CORS_HEADERS"
@@ -34,7 +39,7 @@ const (
 	SERVER_PORT           = "APP_HTTP_PORT"
 	defaultJWTDurationStr = "8" // in hours
 
-	defaultJWTSignMethod = login.HS256 // default signing method is jwt.SigningMethodHS256. other available options are jwt.SigningMethodHS384 and jwt.SigningMethodHS512
+	defaultJWTSignMethod = login.RS256 // default signing method is jwt.SigningMethodHS256. other available options are jwt.SigningMethodHS384 and jwt.SigningMethodHS512
 
 	HeaderContentTypeValue = "application/json; charset=UTF-8"
 	HeaderContentType      = "Content-Type"
@@ -115,18 +120,20 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	var jwtSecret []byte
-	if len(os.Getenv(JWT_TOKEN_SECRET)) == 0 {
-		key := make([]byte, 8)
-		_, err := rand.Read(key)
+	var jwtSecret *rsa.PrivateKey
+	if len(os.Getenv(JWT_PRIVATE_KEY)) == 0 {
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			log.Fatalf("Error generating random key: %v", err)
+			log.Fatalf("Error generating private key: %v", err)
 		}
-
-		log.Print("missing JWT_TOKEN_SECRET environment variable, generating random key.")
-		jwtSecret = key
+		jwtSecret = privateKey
+		log.Printf("missing JWT_PRIVATE_KEY environment variable, generated new private key")
 	} else {
-		jwtSecret = []byte(os.Getenv(JWT_TOKEN_SECRET))
+		privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(os.Getenv(JWT_PRIVATE_KEY)))
+		if err != nil {
+			log.Fatalf("Error reading private key from environment : %v", err)
+		}
+		jwtSecret = privateKey
 	}
 
 	jwtDurationStr := os.Getenv(JWT_TOKEN_DURATION)
@@ -158,7 +165,7 @@ func main() {
 		listeningPort = ":" + os.Getenv(SERVER_PORT)
 	}
 
-	log.Printf("%q set to %v", JWT_TOKEN_DURATION, time.Duration(jwtDuration)*time.Hour)
+	log.Printf("%s set to %v", JWT_TOKEN_DURATION, time.Duration(jwtDuration)*time.Hour)
 
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -209,7 +216,16 @@ func main() {
 
 	ctx := context.Background()
 
-	loginRepo := login.NewRepository()
+	db, err := sql.Open("sqlite3", "keys.db")
+	if err != nil {
+		log.Fatalf("error opening sqlite database : %#v", err)
+	}
+
+	loginRepo := login.NewRepository(db)
+	if err := loginRepo.CreateTables(); err != nil {
+		log.Fatalf("error creating tables : %#v", err)
+	}
+
 	loginSvc, err := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour, jwtSignMethod)
 	if err != nil {
 		log.Fatalf("error creating service : %#v", err)
