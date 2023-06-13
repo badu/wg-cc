@@ -48,7 +48,7 @@ func (r *RepoImpl) Insert(clientID, accessToken, tokenType string, expiresIn int
 	return err
 }
 
-func (r *RepoImpl) Verify(clientID, clientSecret string) (string, error) {
+func (r *RepoImpl) Verify(clientID string) (string, error) {
 	var hashedSecret string
 	err := r.db.QueryRow(SELECT_CLIENT_SECRET_SQL, clientID).Scan(&hashedSecret)
 	if err != nil {

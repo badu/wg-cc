@@ -7,17 +7,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
 	TokenRoute = "/v1/oauth2/token"
+	ListRoute  = "/v1/oauth2/keys"
 )
 
 type Service interface {
 	Sign(clientID, clientSecret string) (*TokenResponse, error)
+	DecodeJWTToken(tokenString string) (*jwt.Token, error)
+	ListKeys() KeysResponse
 }
 
 // IssueToken godoc
@@ -86,7 +91,69 @@ func IssueToken(svc Service) http.Handler {
 	})
 }
 
-func RegisterRoutes(router *mux.Router, svc Service, logger func(inner http.Handler, name string) http.Handler, recoverer func(next http.Handler) http.Handler) {
+// ListTokens godoc
+// @ID list-token
+// @Summary lists issued JWT Access Tokens
+// @Description
+// @Tags token
+// @Produce json
+// @Security
+// @Success 200 {object} KeysResponse
+// @Failure 400,401
+// @Failure 500
+// @Router /v1/oauth2/tokens [get]
+
+func ListTokens(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprintf(w, "Bad request")
+			return
+		}
+
+		// Extract token from request headers or cookies
+		tokenString := r.Header.Get("Authorization")
+
+		if len(tokenString) == 0 {
+			cookie, err := r.Cookie("jwt_token")
+			if err == nil {
+				tokenString = cookie.Value
+			}
+		}
+
+		if len(tokenString) == 0 {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, "Unauthorized")
+			return
+		}
+
+		// Parse and validate the token
+		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
+
+		// use service to decode our token
+		token, err := svc.DecodeJWTToken(tokenString)
+
+		if err != nil || !token.Valid {
+			log.Printf("invalid token or error : %#v\n%s", err, tokenString)
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, "Unauthorized")
+			return
+		}
+
+		response := svc.ListKeys()
+
+		// Send the keys response as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+}
+
+func RegisterRoutes(
+	router *mux.Router,
+	svc Service,
+	logger func(inner http.Handler, name string) http.Handler,
+	recoverer func(next http.Handler) http.Handler,
+) {
 	router.Methods(http.MethodPost).
 		Path(TokenRoute).
 		Name("TokenRoute").
@@ -94,6 +161,17 @@ func RegisterRoutes(router *mux.Router, svc Service, logger func(inner http.Hand
 			recoverer(
 				logger(
 					IssueToken(svc), TokenRoute,
+				),
+			),
+		)
+
+	router.Methods(http.MethodGet).
+		Path(ListRoute).
+		Name("ListRoute").
+		Handler(
+			recoverer(
+				logger(
+					ListTokens(svc), ListRoute,
 				),
 			),
 		)

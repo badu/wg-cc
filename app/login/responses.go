@@ -14,10 +14,13 @@ type IntrospectionResponse struct {
 	Active    bool   `json:"active"`
 }
 
-type Key struct {
-	Kid string `json:"kid"`
+type SignKey struct {
+	KeyID     string `json:"key_id"`
+	Key       string `json:"public_key"`
+	Algorithm string `json:"algorithm"`
+	Use       string `json:"use"`
 }
 
 type KeysResponse struct {
-	Keys []Key `json:"keys"`
+	Keys []SignKey `json:"keys"`
 }

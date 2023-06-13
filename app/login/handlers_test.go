@@ -36,12 +36,9 @@ func TestGenerateToken(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	mockedRepo := login.NewMock("valid-client-id")
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	service, err := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
-	if err != nil {
-		t.Fatalf("service creation error : %#v", err)
-	}
+	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 
-	handler := login.IssueToken(service)
+	handler := login.IssueToken(&service)
 	handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusOK {
@@ -85,12 +82,9 @@ func TestFailGenerateToken(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	mockedRepo := login.NewMock("")
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	service, err := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
-	if err != nil {
-		t.Fatalf("service creation error : %#v", err)
-	}
+	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 
-	handler := login.IssueToken(service)
+	handler := login.IssueToken(&service)
 	handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusUnauthorized {

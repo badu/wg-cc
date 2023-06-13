@@ -2,7 +2,9 @@ package login
 
 import (
 	"crypto/rsa"
-	"errors"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"log"
 	"time"
 
@@ -17,15 +19,16 @@ const (
 )
 
 type Repository interface {
-	Verify(clientID, clientSecret string) (string, error)
+	Verify(clientID string) (string, error)
 	Insert(clientID, accessToken, tokenType string, expiresIn int64) error
 }
 
 type SvcImpl struct {
-	repo            Repository
-	secretKey       *rsa.PrivateKey
-	tokenExpiration time.Duration
-	signingMethod   *jwt.SigningMethodRSA
+	repo              Repository
+	secretKey         *rsa.PrivateKey
+	tokenExpiration   time.Duration
+	signingMethod     *jwt.SigningMethodRSA
+	signingMethodName string
 }
 
 func NewService(
@@ -33,13 +36,15 @@ func NewService(
 	secret *rsa.PrivateKey,
 	expiration time.Duration,
 	signMethod string,
-) (*SvcImpl, error) {
+) SvcImpl {
 	result := SvcImpl{
-		repo:            repo,
-		secretKey:       secret,
-		tokenExpiration: expiration,
+		repo:              repo,
+		secretKey:         secret,
+		tokenExpiration:   expiration,
+		signingMethodName: signMethod,
 	}
 
+	// validation happens in the main file of the server, so we don't get surprises here
 	switch signMethod {
 	case RS384:
 		result.signingMethod = jwt.SigningMethodRS384
@@ -47,15 +52,13 @@ func NewService(
 		result.signingMethod = jwt.SigningMethodRS512
 	case RS256:
 		result.signingMethod = jwt.SigningMethodRS256
-	default:
-		return nil, errors.New("unknown signing method")
 	}
 
-	return &result, nil
+	return result
 }
 
 func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
-	hashedSecret, err := s.repo.Verify(clientID, clientSecret)
+	hashedSecret, err := s.repo.Verify(clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +67,15 @@ func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now()
 
 	// generate the access token
 	token := jwt.New(s.signingMethod)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["sub"] = clientID
-	claims["exp"] = time.Now().Add(s.tokenExpiration).Unix()
+	claims["exp"] = now.Add(s.tokenExpiration).Unix() // The expiration time after which the token must be disregarded.
+	claims["iat"] = now.Unix()                        // The time at which the token was issued.
+	claims["nbf"] = now.Unix()                        // The time before which the token must be disregarded.
 
 	// sign the token with the secret key
 	tokenString, err := token.SignedString(s.secretKey)
@@ -89,4 +95,37 @@ func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
 
 	// the token response
 	return &result, nil
+}
+
+func (s *SvcImpl) DecodeJWTToken(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
+		if _, ok := jwtToken.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected method: %s", jwtToken.Header["alg"])
+		}
+		return s.secretKey.Public(), nil
+	})
+	return token, err
+}
+
+func (s *SvcImpl) ListKeys() KeysResponse {
+	result := KeysResponse{Keys: make([]SignKey, 0, 1)}
+
+	// Marshal the public key to PKIX format
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(s.secretKey.Public())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a PEM block for the public key
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+
+	result.Keys = append(result.Keys, SignKey{
+		Key:       string(publicKeyPEM),
+		KeyID:     "key1",
+		Algorithm: s.signingMethodName,
+	})
+	return result
 }

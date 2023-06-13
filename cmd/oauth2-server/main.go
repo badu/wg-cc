@@ -151,6 +151,12 @@ func main() {
 		jwtSignMethod = defaultJWTSignMethod
 	}
 
+	switch jwtSignMethod {
+	case login.RS384, login.RS512, login.RS256:
+	default:
+		log.Fatalf("unknown signing method %q", jwtSignMethod)
+	}
+
 	frontendURL := "*" // default allow all
 	if len(os.Getenv(ALLOWED_CORS_URL)) > 0 {
 		frontendURL = os.Getenv(ALLOWED_CORS_URL)
@@ -226,11 +232,8 @@ func main() {
 		log.Fatalf("error creating tables : %#v", err)
 	}
 
-	loginSvc, err := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour, jwtSignMethod)
-	if err != nil {
-		log.Fatalf("error creating service : %#v", err)
-	}
-	login.RegisterRoutes(router, loginSvc, Logger, Recover)
+	loginSvc := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour, jwtSignMethod)
+	login.RegisterRoutes(router, &loginSvc, Logger, Recover)
 
 	var group runner.Group
 	group.Add(func() error {

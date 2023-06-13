@@ -12,7 +12,7 @@ func NewMock(clientFound string) RepoMock {
 	return RepoMock{clientFound: clientFound}
 }
 
-func (r *RepoMock) Verify(clientID, clientSecret string) (string, error) {
+func (r *RepoMock) Verify(clientID string) (string, error) {
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte(r.clientFound), bcrypt.DefaultCost)
 	return string(hashedSecret), nil
 }
