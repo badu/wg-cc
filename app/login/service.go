@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -89,14 +90,25 @@ func (s *SvcImpl) Sign(clientID, clientSecret string) (*TokenResponse, error) {
 
 	// generate the access token
 	token := jwt.New(s.signingMethod)
+	// from 7519, the following claims
 	claims := token.Claims.(jwt.MapClaims)
+	// "sub" (Subject): Identifies the subject of the token, typically the user or entity associated with it.
 	claims["sub"] = clientID
+	// "iss" (Issuer): Identifies the issuer of the token.
+	claims["iss"] = "http://localhost:8080"
+	// "aud" (Audience): Specifies the intended audience for the token.
+	claims["aud"] = "https://api.example.com"
+	// "exp" (Expiration Time): Indicates the expiration time of the token.
 	claims["exp"] = now.Add(s.tokenExpiration).Unix() // The expiration time after which the token must be disregarded.
-	claims["iat"] = now.Unix()                        // The time at which the token was issued.
-	claims["nbf"] = now.Unix()                        // The time before which the token must be disregarded.
-	claims["scope"] = "read"                          // test scope, just to have something
+	// "iat" (Issued At): Specifies the time at which the token was issued.
+	claims["iat"] = now.Unix() // The time at which the token was issued.
+	// "nbf" (Not Before): Defines the time before which the token should not be accepted.
+	claims["nbf"] = now.Unix() // The time before which the token must be disregarded.
+	// "jti" (JWT ID): Provides a unique identifier for the token.
+	claims["jti"] = uuid.New().String()
+	// extra something, let's say scope
+	claims["scope"] = "read" // test scope, just to have something
 
-	// sign the token with the secret key
 	tokenString, err := token.SignedString(privateKey)
 	if err != nil {
 		return nil, err

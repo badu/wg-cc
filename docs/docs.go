@@ -175,7 +175,7 @@ var doc = `{
                     },
                     {
                         "type": "string",
-                        "default": "client_credentials",
+                        "default": "create_key",
                         "description": "operation_type can be create_key (should provide key_name) and create_client (should provide client_id, client_secret and associated key_name).",
                         "name": "operation_type",
                         "in": "formData",

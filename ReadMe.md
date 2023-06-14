@@ -125,7 +125,10 @@ In the database, there are three tables:
 6. You can use [this endpoint](http://localhost:8080/docs/index.html#/token/create-token) to test jwt signing by
    providing the client id and secret declared on each client. The signing will be done using the key associated on
    onboarding.
-7. Test other endpoints as well, by using the same Swagger interface.
+7. Test other endpoints as well, by using the same Swagger interface. Note that introspection and listing RSA keys
+   require authentication (press `Authorize` button in the upper right and complete with `Bearer `+<JWT_TOKEN> obtained
+   from the `token` route). Also, if you generate a new token (let's say for a different client), don't forget to update
+   the `Bearer` value.
 
 ## Final note
 

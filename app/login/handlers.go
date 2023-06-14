@@ -253,14 +253,12 @@ func Introspect(svc Service) http.Handler {
 				log.Printf("Error encoding JSON: %#v", err)
 			}
 			return
-			return
 		}
 
 		// use service to decode our token
 		token, err := svc.DecodeJWTToken(tokenString)
-
-		if err != nil || !token.Valid {
-			log.Printf("invalid token or error : %#v\n%s", err, tokenString)
+		if err != nil {
+			log.Printf("error decoding token : %#v\n%s", err, tokenString)
 			w.WriteHeader(unauthorized.Code)
 			if err := jsonEncoder.Encode(unauthorized); err != nil {
 				log.Printf("Error encoding JSON: %#v", err)
@@ -268,25 +266,75 @@ func Introspect(svc Service) http.Handler {
 			return
 		}
 
-		var response IntrospectionResponse
-		if err == nil {
-			// Verify if the token is valid and not expired
-			if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-				response = IntrospectionResponse{Active: true}
-				if scope, has := claims["scope"]; has {
-					if scopeStr, ok := scope.(string); ok {
-						response.Scope = scopeStr
-					}
-				}
-				if expires, has := claims["exp"]; has {
-					if expireFloat, ok := expires.(float64); ok {
-						response.ExpiresAt = int64(expireFloat)
-					}
-				}
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			log.Printf("invalid claims for token %s", tokenString)
+			w.WriteHeader(unauthorized.Code)
+			if err := jsonEncoder.Encode(unauthorized); err != nil {
+				log.Printf("Error encoding JSON: %#v", err)
+			}
+			return
+		}
+
+		// from RFC 7662: "token_type": The type of the token (e.g., bearer, refresh token).
+		response := IntrospectionResponse{Type: "Bearer"}
+
+		// Verify if the token is valid and not expired
+		if token.Valid {
+			response = IntrospectionResponse{Active: true}
+		}
+
+		// from RFC 7662: "client_id": The identifier of the client associated with the token.
+		// from RFC 7662: "username" or "sub": The identifier of the user associated with the token.
+		if clientID, has := claims["sub"]; has {
+			if clientIDStr, ok := clientID.(string); ok {
+				response.ClientID = clientIDStr
+				response.Subject = clientIDStr
 			}
 		}
 
-		// Send the keys response as JSON
+		// from RFC 7662: "iat" (Issued At): Specifies the time at which the token was issued.
+		if iat, has := claims["iat"]; has {
+			if iatFloat, ok := iat.(float64); ok {
+				response.IssuedAt = int64(iatFloat)
+			}
+		}
+
+		// from RFC 7662: "nbf" (Not Before): Defines the time before which the token should not be accepted.
+		if nbf, has := claims["nbf"]; has {
+			if nbfFloat, ok := nbf.(float64); ok {
+				response.NotBefore = int64(nbfFloat)
+			}
+		}
+
+		// from RFC 7662: "aud" (Audience): Specifies the intended audience for the token.
+		if aud, has := claims["aud"]; has {
+			if audStr, ok := aud.(string); ok {
+				response.Audience = audStr
+			}
+		}
+
+		// from RFC 7662: "scope" - extra
+		if scope, has := claims["scope"]; has {
+			if scopeStr, ok := scope.(string); ok {
+				response.Scope = scopeStr
+			}
+		}
+
+		// from RFC 7662: "exp" (Expiration Time): Indicates the expiration time of the token.
+		if expires, has := claims["exp"]; has {
+			if expireFloat, ok := expires.(float64); ok {
+				response.ExpiresAt = int64(expireFloat)
+			}
+		}
+
+		if uuid, has := claims["jti"]; has {
+			if uuidStr, ok := uuid.(string); ok {
+				response.UUID = uuidStr
+			}
+		}
+
+		// Send the response as JSON
 		if err := jsonEncoder.Encode(response); err != nil {
 			log.Printf("Error encoding JSON: %#v", err)
 		}
@@ -304,7 +352,7 @@ func Introspect(svc Service) http.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Param totp formData string true "totp code"
-// @Param operation_type formData string true "operation_type can be create_key (should provide key_name) and create_client (should provide client_id, client_secret and associated key_name)." default(client_credentials)
+// @Param operation_type formData string true "operation_type can be create_key (should provide key_name) and create_client (should provide client_id, client_secret and associated key_name)." default(create_key)
 // @Param client_id formData string false "client_id" default(test)
 // @Param client_secret formData string false "client_secret" default(test)
 // @Param key_name formData string true "key_name" default(my_key)

@@ -23,7 +23,14 @@ type KeysResponse struct {
 }
 
 type IntrospectionResponse struct {
+	ClientID  string `json:"client_id"`
+	Subject   string `json:"sub"`
 	Scope     string `json:"scope"`
+	Audience  string `json:"aud"`
+	Type      string `json:"token_type"`
+	UUID      string `json:"jti"`
 	ExpiresAt int64  `json:"exp"`
+	NotBefore int64  `json:"nbf"`
+	IssuedAt  int64  `json:"iat"`
 	Active    bool   `json:"active"`
 }
