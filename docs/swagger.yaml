@@ -135,6 +135,61 @@ paths:
       summary: Endpoint to list the signing keys (rfc7517)
       tags:
       - token
+  /v1/oauth2/onboard:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: This endpoint helps local tests, by creating signing keys and declaring
+        new clients
+      operationId: declare-clients-and-keys
+      parameters:
+      - description: totp code
+        in: formData
+        name: totp
+        required: true
+        type: string
+      - default: client_credentials
+        description: operation_type can be create_key (should provide key_name) and
+          create_client (should provide client_id, client_secret and associated key_name).
+        in: formData
+        name: operation_type
+        required: true
+        type: string
+      - default: test
+        description: client_id
+        in: formData
+        name: client_id
+        type: string
+      - default: test
+        description: client_secret
+        in: formData
+        name: client_secret
+        type: string
+      - default: my_key
+        description: key_name
+        in: formData
+        name: key_name
+        required: true
+        type: string
+      responses:
+        "202":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+      summary: Facilitates the creation of signing keys and onboarding new clients
+        (client_id, client_secret and signing key pairs)
+      tags:
+      - token
   /v1/oauth2/token:
     post:
       consumes:

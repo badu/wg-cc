@@ -18,6 +18,7 @@ const (
 	TokenRoute      = "/v1/oauth2/token"
 	ListRoute       = "/v1/oauth2/keys"
 	IntrospectRoute = "/v1/oauth2/introspect"
+	OnboardingRoute = "/v1/oauth2/onboard"
 )
 
 var (
@@ -39,7 +40,9 @@ var (
 type Service interface {
 	Sign(clientID, clientSecret string) (*TokenResponse, error)
 	DecodeJWTToken(tokenString string) (*jwt.Token, error)
-	ListKeys() KeysResponse
+	ListKnownSigningKeys() (*KeysResponse, error)
+	GenerateAndSavePrivateKey(totpKey, keyName string) error
+	OnboardNewClient(totpKey, clientID, clientSecret, keyName string) error
 }
 
 // IssueToken godoc
@@ -155,7 +158,7 @@ func getTokenFromRequest(r *http.Request) string {
 	return tokenString
 }
 
-// ListRSAKeys godoc
+// ListKnownSigningKeys godoc
 // @Summary Endpoint to list the signing keys (rfc7517)
 // @ID list-keys
 // @Description This endpoint lists the signing keys.
@@ -167,7 +170,7 @@ func getTokenFromRequest(r *http.Request) string {
 // @Failure 401 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/oauth2/keys [get]
-func ListRSAKeys(svc Service) http.Handler {
+func ListKnownSigningKeys(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -201,7 +204,15 @@ func ListRSAKeys(svc Service) http.Handler {
 			return
 		}
 
-		response := svc.ListKeys()
+		response, err := svc.ListKnownSigningKeys()
+		if err != nil {
+			// err present (other error)
+			w.WriteHeader(internal.Code)
+			log.Printf("error listing signing keys: %#v", err)
+			if err := jsonEncoder.Encode(internal); err != nil {
+				log.Printf("Error encoding JSON: %#v", err)
+			}
+		}
 
 		// Send the keys response as JSON
 		if err := jsonEncoder.Encode(response); err != nil {
@@ -282,6 +293,87 @@ func Introspect(svc Service) http.Handler {
 	})
 }
 
+// Onboarding godoc
+// @Summary Facilitates the creation of signing keys and onboarding new clients (client_id, client_secret and signing key pairs)
+// @ID declare-clients-and-keys
+// @Description This endpoint helps local tests, by creating signing keys and declaring new clients
+// @Tags token
+// @Accept x-www-form-urlencoded
+// @Success 202
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Param totp formData string true "totp code"
+// @Param operation_type formData string true "operation_type can be create_key (should provide key_name) and create_client (should provide client_id, client_secret and associated key_name)." default(client_credentials)
+// @Param client_id formData string false "client_id" default(test)
+// @Param client_secret formData string false "client_secret" default(test)
+// @Param key_name formData string true "key_name" default(my_key)
+// @Router /v1/oauth2/onboard [post]
+func Onboarding(svc Service) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprintf(w, "Bad request : must accept application/json")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		jsonEncoder := json.NewEncoder(w)
+
+		if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+			w.WriteHeader(badRequest.Code)
+			if err := jsonEncoder.Encode(badRequest); err != nil {
+				log.Printf("Error encoding JSON: %#v", err)
+			}
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			log.Printf("Failed to parse form data : %#v", err)
+			w.WriteHeader(badRequest.Code)
+			if err := jsonEncoder.Encode(badRequest); err != nil {
+				log.Printf("Error encoding JSON: %#v", err)
+			}
+			return
+		}
+
+		operation := r.Form.Get("operation_type")
+		switch operation {
+		case "create_key":
+			totpKey := r.Form.Get("totp")
+			keyName := r.Form.Get("key_name")
+			err := svc.GenerateAndSavePrivateKey(totpKey, keyName)
+			if err != nil {
+				log.Printf("there was an error while trying to save the new signing key : %#v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusAccepted)
+		case "create_client":
+			totpKey := r.Form.Get("totp")
+			keyName := r.Form.Get("key_name")
+			clientID := r.Form.Get("client_id")
+			clientSecret := r.Form.Get("client_secret")
+			err := svc.OnboardNewClient(totpKey, clientID, clientSecret, keyName)
+			if err != nil {
+				log.Printf("there was an error while trying to save the new signing key : %#v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusAccepted)
+		default:
+			log.Printf("Unauthorized attempt detected with request: %#v", r)
+			w.WriteHeader(unauthorized.Code)
+			if err := jsonEncoder.Encode(unauthorized); err != nil {
+				log.Printf("Error encoding JSON: %#v", err)
+			}
+		}
+	})
+}
+
 func RegisterRoutes(
 	router *mux.Router,
 	svc Service,
@@ -305,7 +397,7 @@ func RegisterRoutes(
 		Handler(
 			recoverer(
 				logger(
-					ListRSAKeys(svc), ListRoute,
+					ListKnownSigningKeys(svc), ListRoute,
 				),
 			),
 		)
@@ -318,6 +410,17 @@ func RegisterRoutes(
 			recoverer(
 				logger(
 					Introspect(svc), IntrospectRoute,
+				),
+			),
+		)
+
+	router.Methods(http.MethodPost).
+		Path(OnboardingRoute).
+		Name("OnboardingRoute").
+		Handler(
+			recoverer(
+				logger(
+					Onboarding(svc), OnboardingRoute,
 				),
 			),
 		)

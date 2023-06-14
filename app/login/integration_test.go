@@ -14,6 +14,10 @@ import (
 	"github.com/badu/wg-cc/app/login"
 )
 
+/*
+*
+These tests should run agains a running instance of the server
+*/
 func getTokenResponse(t *testing.T) *login.TokenResponse {
 	serverURL := "http://127.0.0.1:8080" + login.TokenRoute
 

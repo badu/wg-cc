@@ -1,6 +1,8 @@
 package login
 
 import (
+	"database/sql"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -10,24 +12,46 @@ type internalData struct {
 }
 
 type RepoMock struct {
-	clientFound string
-	keysMap     map[string]internalData
+	clientID string
+	jwtsMap  map[string]internalData
+	keysMap  map[string][]byte
 }
 
-func NewMock(clientFound string) RepoMock {
-	return RepoMock{clientFound: clientFound, keysMap: make(map[string]internalData)}
+func NewMock(clientID string) RepoMock {
+	return RepoMock{clientID: clientID, jwtsMap: make(map[string]internalData), keysMap: make(map[string][]byte)}
 }
 
-func (r *RepoMock) Verify(clientID string) (string, error) {
-	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte(r.clientFound), bcrypt.DefaultCost)
-	return string(hashedSecret), nil
+func (r *RepoMock) GetClientSecretAndPrivateKeyByClientID(clientID string) (string, []byte, error) {
+	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte(r.clientID), bcrypt.DefaultCost)
+	key, has := r.keysMap[clientID]
+	if !has {
+		return string(hashedSecret), nil, sql.ErrNoRows
+	}
+	return string(hashedSecret), key, nil
 }
 
-func (r *RepoMock) Insert(clientID, accessToken, tokenType string, expiresIn int64) error {
-	r.keysMap[clientID] = internalData{
+func (r *RepoMock) InsertAudit(clientID, accessToken, tokenType string, expiresIn int64) error {
+	r.jwtsMap[clientID] = internalData{
 		accessToken: accessToken,
 		tokenType:   tokenType,
 		expiresIn:   expiresIn,
 	}
 	return nil
+}
+
+func (r *RepoMock) SavePrivateKey(keyName string, keyData []byte) error {
+	r.keysMap[keyName] = keyData
+	return nil
+}
+
+func (r *RepoMock) InsertClient(clientID string, clientSecret []byte, keyName string) error {
+	return nil
+}
+
+func (r *RepoMock) GetSigningKeyFromAuditedToken(tokenString string) ([]byte, error) {
+	return nil, nil
+}
+
+func (r *RepoMock) ListAllSigningKeys() ([]string, [][]byte, error) {
+	return nil, nil, nil
 }

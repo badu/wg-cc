@@ -154,6 +154,81 @@ var doc = `{
                 }
             }
         },
+        "/v1/oauth2/onboard": {
+            "post": {
+                "description": "This endpoint helps local tests, by creating signing keys and declaring new clients",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Facilitates the creation of signing keys and onboarding new clients (client_id, client_secret and signing key pairs)",
+                "operationId": "declare-clients-and-keys",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "totp code",
+                        "name": "totp",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "client_credentials",
+                        "description": "operation_type can be create_key (should provide key_name) and create_client (should provide client_id, client_secret and associated key_name).",
+                        "name": "operation_type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "test",
+                        "description": "client_id",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "test",
+                        "description": "client_secret",
+                        "name": "client_secret",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "my_key",
+                        "description": "key_name",
+                        "name": "key_name",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/oauth2/token": {
             "post": {
                 "description": "This endpoint issues JWT Access Tokens using the Client Credentials Grant with Basic Authentication.",

@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"crypto/rsa"
 	"database/sql"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -25,6 +24,7 @@ import (
 	"github.com/badu/wg-cc/app/login"
 	"github.com/badu/wg-cc/pkg/runner"
 	"github.com/badu/wg-cc/pkg/signal"
+	"github.com/badu/wg-cc/pkg/simple_otp"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -33,7 +33,6 @@ import (
 
 const (
 	JWT_TOKEN_DURATION    = "JWT_TOKEN_DURATION"
-	JWT_PRIVATE_KEY       = "JWT_PRIVATE_KEY"
 	JWT_SIGNING_METHOD    = "JWT_SIGNING_METHOD"
 	ALLOWED_CORS_URL      = "ALLOWED_CORS_URL"
 	ALLOWED_CORS_HEADERS  = "ALLOWED_CORS_HEADERS"
@@ -126,21 +125,26 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	var jwtSecret *rsa.PrivateKey
-	if len(os.Getenv(JWT_PRIVATE_KEY)) == 0 {
-		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			log.Fatalf("Error generating private key: %v", err)
-		}
-		jwtSecret = privateKey
-		log.Printf("missing JWT_PRIVATE_KEY environment variable, generated new private key")
-	} else {
-		privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(os.Getenv(JWT_PRIVATE_KEY)))
-		if err != nil {
-			log.Fatalf("Error reading private key from environment : %v", err)
-		}
-		jwtSecret = privateKey
+	// generating a runtime secret to produce a TOTP for admins
+	randomBytes := make([]byte, 8)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		log.Fatalf("error generating password for TOTP : %#v", err)
 	}
+
+	// create a TOTP for admins
+	totp := simple_otp.TOTP{
+		Secret:    base32.StdEncoding.EncodeToString([]byte(randomBytes)),
+		Digits:    8,
+		Algorithm: simple_otp.TotpSha256,
+	}
+	totpKey, err := totp.Generate()
+	if err != nil {
+		log.Fatalf("error occurred while generating presenter TOTP : %#v", err)
+	}
+
+	// printout TOTP so admins can use it (for "onboarding" operations)
+	log.Printf("====> administration TOTP key ====> %s", totpKey)
 
 	jwtDurationStr := os.Getenv(JWT_TOKEN_DURATION)
 	if len(jwtDurationStr) == 0 {
@@ -234,11 +238,15 @@ func main() {
 	}
 
 	loginRepo := login.NewRepository(db)
+	// create the needed tables first time we run
 	if err := loginRepo.CreateTables(); err != nil {
 		log.Fatalf("error creating tables : %#v", err)
 	}
 
-	loginSvc := login.NewService(&loginRepo, jwtSecret, time.Duration(jwtDuration)*time.Hour, jwtSignMethod)
+	// create the service
+	loginSvc := login.NewService(&loginRepo, time.Duration(jwtDuration)*time.Hour, jwtSignMethod, totpKey)
+
+	// compose the service with the transport and global middlewares
 	login.RegisterRoutes(router, &loginSvc, Logger, Recover)
 
 	var group runner.Group

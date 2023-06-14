@@ -3,7 +3,10 @@ package login_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,9 +32,21 @@ func TestGenerateToken(t *testing.T) {
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Error generating private key: %v", err)
+	}
+
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyBlock := pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+
 	mockedRepo := login.NewMock("test") // mock the password
-	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
+	mockedRepo.SavePrivateKey("test", pem.EncodeToMemory(&privateKeyBlock))
+	service := login.NewService(&mockedRepo, time.Duration(8)*time.Hour, login.RS256, "123456")
 
 	handler := login.IssueToken(&service)
 	handler.ServeHTTP(recorder, req)
@@ -76,9 +91,22 @@ func TestFailGenerateToken(t *testing.T) {
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
-	mockedRepo := login.NewMock("should-fail")
-	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Error generating private key: %v", err)
+	}
+
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyBlock := pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+
+	mockedRepo := login.NewMock("should-fail") // mock the password
+	mockedRepo.SavePrivateKey("should-fail", pem.EncodeToMemory(&privateKeyBlock))
+
+	service := login.NewService(&mockedRepo, time.Duration(8)*time.Hour, login.RS256, "123456")
 
 	handler := login.IssueToken(&service)
 	handler.ServeHTTP(recorder, req)
