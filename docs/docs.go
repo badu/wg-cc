@@ -28,9 +28,10 @@ var doc = `{
             "get": {
                 "security": [
                     {
-                        "": []
+                        "BearerAuth": []
                     }
                 ],
+                "description": "This endpoint allows introspection of the issued JWT Access Tokens.",
                 "produces": [
                     "application/json"
                 ],
@@ -47,13 +48,64 @@ var doc = `{
                         }
                     },
                     "400": {
-                        "description": ""
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "401": {
-                        "description": ""
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "500": {
-                        "description": ""
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "This endpoint allows introspection of the issued JWT Access Tokens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Introspection endpoint (rfc7662) to introspect the issued JWT Access Tokens",
+                "operationId": "introspect-jwt",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/login.IntrospectionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -62,16 +114,17 @@ var doc = `{
             "get": {
                 "security": [
                     {
-                        "": []
+                        "BearerAuth": []
                     }
                 ],
+                "description": "This endpoint lists the signing keys.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "token"
                 ],
-                "summary": "endpoint to list the signing keys (rfc7517)",
+                "summary": "Endpoint to list the signing keys (rfc7517)",
                 "operationId": "list-keys",
                 "responses": {
                     "200": {
@@ -81,19 +134,29 @@ var doc = `{
                         }
                     },
                     "400": {
-                        "description": ""
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "401": {
-                        "description": ""
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "500": {
-                        "description": ""
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     }
                 }
             }
         },
         "/v1/oauth2/token": {
             "post": {
+                "description": "This endpoint issues JWT Access Tokens using the Client Credentials Grant with Basic Authentication.",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -103,8 +166,34 @@ var doc = `{
                 "tags": [
                     "token"
                 ],
-                "summary": "issues JWT Access Tokens (rfc7519) using Client Credentials Grant with Basic Authentication (rfc6749)",
+                "summary": "Issues JWT Access Tokens (rfc7519) using Client Credentials Grant with Basic Authentication (rfc6749)",
                 "operationId": "create-token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "client_credentials",
+                        "description": "grant_type",
+                        "name": "grant_type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "test",
+                        "description": "client_id",
+                        "name": "client_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "test",
+                        "description": "client_secret",
+                        "name": "client_secret",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -113,19 +202,39 @@ var doc = `{
                         }
                     },
                     "400": {
-                        "description": ""
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "401": {
-                        "description": ""
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     },
                     "500": {
-                        "description": ""
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/login.ErrorResponse"
+                        }
                     }
                 }
             }
         }
     },
     "definitions": {
+        "login.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
         "login.IntrospectionResponse": {
             "type": "object",
             "properties": {
@@ -186,6 +295,11 @@ var doc = `{
     "securityDefinitions": {
         "BasicAuth": {
             "type": "basic"
+        },
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

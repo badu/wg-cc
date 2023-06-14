@@ -102,6 +102,10 @@ func Recover(next http.Handler) http.Handler {
 
 // @securityDefinitions.basic BasicAuth
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 func main() {
 	switch os.Getenv("LOG_LEVEL") {
 	case "EMERG":

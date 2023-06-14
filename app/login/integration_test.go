@@ -30,6 +30,7 @@ func getTokenResponse(t *testing.T) *login.TokenResponse {
 
 	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

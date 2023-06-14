@@ -1,4 +1,11 @@
 definitions:
+  login.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+    type: object
   login.IntrospectionResponse:
     properties:
       active:
@@ -45,6 +52,7 @@ info:
 paths:
   /v1/oauth2/introspect:
     get:
+      description: This endpoint allows introspection of the issued JWT Access Tokens.
       operationId: introspect-jwt
       produces:
       - application/json
@@ -54,19 +62,54 @@ paths:
           schema:
             $ref: '#/definitions/login.IntrospectionResponse'
         "400":
-          description: ""
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "401":
-          description: ""
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "500":
-          description: ""
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
       security:
-      - "": []
+      - BearerAuth: []
+      summary: Introspection endpoint (rfc7662) to introspect the issued JWT Access
+        Tokens
+      tags:
+      - token
+    post:
+      description: This endpoint allows introspection of the issued JWT Access Tokens.
+      operationId: introspect-jwt
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/login.IntrospectionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Introspection endpoint (rfc7662) to introspect the issued JWT Access
         Tokens
       tags:
       - token
   /v1/oauth2/keys:
     get:
+      description: This endpoint lists the signing keys.
       operationId: list-keys
       produces:
       - application/json
@@ -76,21 +119,48 @@ paths:
           schema:
             $ref: '#/definitions/login.KeysResponse'
         "400":
-          description: ""
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "401":
-          description: ""
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "500":
-          description: ""
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
       security:
-      - "": []
-      summary: endpoint to list the signing keys (rfc7517)
+      - BearerAuth: []
+      summary: Endpoint to list the signing keys (rfc7517)
       tags:
       - token
   /v1/oauth2/token:
     post:
       consumes:
       - application/x-www-form-urlencoded
+      description: This endpoint issues JWT Access Tokens using the Client Credentials
+        Grant with Basic Authentication.
       operationId: create-token
+      parameters:
+      - default: client_credentials
+        description: grant_type
+        in: formData
+        name: grant_type
+        required: true
+        type: string
+      - default: test
+        description: client_id
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - default: test
+        description: client_secret
+        in: formData
+        name: client_secret
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -99,16 +169,26 @@ paths:
           schema:
             $ref: '#/definitions/login.TokenResponse'
         "400":
-          description: ""
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "401":
-          description: ""
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
         "500":
-          description: ""
-      summary: issues JWT Access Tokens (rfc7519) using Client Credentials Grant with
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/login.ErrorResponse'
+      summary: Issues JWT Access Tokens (rfc7519) using Client Credentials Grant with
         Basic Authentication (rfc6749)
       tags:
       - token
 securityDefinitions:
   BasicAuth:
     type: basic
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

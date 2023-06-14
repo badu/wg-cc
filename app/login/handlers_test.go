@@ -7,34 +7,29 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/badu/wg-cc/app/login"
 )
 
 func TestGenerateToken(t *testing.T) {
-	hashedSecret, err := bcrypt.GenerateFromPassword([]byte("test"), bcrypt.DefaultCost)
-	if err != nil {
-		t.Fatalf("error hashing secret: %#v", err)
-	}
-
 	payload := url.Values{
 		"grant_type":    {"client_credentials"},
 		"client_id":     {"test"},
-		"client_secret": {string(hashedSecret)},
+		"client_secret": {"test"},
 	}
-	req, err := http.NewRequest(http.MethodPost, login.TokenRoute, nil)
+	req, err := http.NewRequest(http.MethodPost, login.TokenRoute, strings.NewReader(payload.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
-	mockedRepo := login.NewMock("valid-client-id")
+	mockedRepo := login.NewMock("test") // mock the password
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 
@@ -42,7 +37,7 @@ func TestGenerateToken(t *testing.T) {
 	handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusOK {
-		t.Errorf("Expected status %d, but got %d", http.StatusOK, recorder.Code)
+		t.Fatalf("Expected status %d, but got %d => %s", http.StatusOK, recorder.Code, recorder.Body.String())
 	}
 
 	var response login.TokenResponse
@@ -72,15 +67,16 @@ func TestFailGenerateToken(t *testing.T) {
 		"client_id":     {"test"},
 		"client_secret": {"test"},
 	}
-	req, err := http.NewRequest(http.MethodPost, login.TokenRoute, nil)
+	req, err := http.NewRequest(http.MethodPost, login.TokenRoute, strings.NewReader(payload.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 	req.Form = payload
 
 	recorder := httptest.NewRecorder()
-	mockedRepo := login.NewMock("")
+	mockedRepo := login.NewMock("should-fail")
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	service := login.NewService(&mockedRepo, privateKey, time.Duration(8)*time.Hour, login.RS256)
 
