@@ -406,7 +406,7 @@ func Onboarding(svc Service) http.Handler {
 			clientSecret := r.Form.Get("client_secret")
 			err := svc.OnboardNewClient(totpKey, clientID, clientSecret, keyName)
 			if err != nil {
-				log.Printf("there was an error while trying to save the new signing key : %#v", err)
+				log.Printf("there was an error while trying to create a new client : %#v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

@@ -203,7 +203,7 @@ func (s *SvcImpl) ListKnownSigningKeys() (*KeysResponse, error) {
 
 func (s *SvcImpl) GenerateAndSavePrivateKey(totpKey, keyName string) error {
 	if s.totpKey != totpKey {
-		return fmt.Errorf("TOTP secrets not equal %q != %q", s.totpKey, totpKey)
+		return fmt.Errorf("TOTP secrets not equal %s != %s", s.totpKey, totpKey)
 	}
 
 	if len(keyName) == 0 {
@@ -227,7 +227,7 @@ func (s *SvcImpl) GenerateAndSavePrivateKey(totpKey, keyName string) error {
 
 func (s *SvcImpl) OnboardNewClient(totpKey, clientID, clientSecret, keyName string) error {
 	if s.totpKey != totpKey {
-		return fmt.Errorf("TOTP secrets not equal %q != %q", s.totpKey, totpKey)
+		return fmt.Errorf("TOTP secrets not equal %s != %s", s.totpKey, totpKey)
 	}
 
 	hashedSecret, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)

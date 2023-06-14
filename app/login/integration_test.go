@@ -16,7 +16,7 @@ import (
 
 /*
 *
-These tests should run agains a running instance of the server
+These tests should run against a running instance of the server
 */
 func getTokenResponse(t *testing.T) *login.TokenResponse {
 	serverURL := "http://127.0.0.1:8080" + login.TokenRoute
@@ -49,6 +49,11 @@ func getTokenResponse(t *testing.T) *login.TokenResponse {
 		t.Fatalf("Error reading response: %#v", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		t.Logf("status code %d server response was : %s", resp.StatusCode, body)
+		t.Fatalf("expectin 200 OK")
+	}
+
 	var response login.TokenResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
@@ -64,6 +69,9 @@ func TestGenerateJWTToken(t *testing.T) {
 
 func TestListKeys(t *testing.T) {
 	response := getTokenResponse(t)
+	if len(response.AccessToken) == 0 {
+		t.Fatalf("error : maybe you forgot to register test client")
+	}
 
 	serverURL := "http://127.0.0.1:8080" + login.ListRoute
 
@@ -93,6 +101,9 @@ func TestListKeys(t *testing.T) {
 
 func TestIntrospect(t *testing.T) {
 	response := getTokenResponse(t)
+	if len(response.AccessToken) == 0 {
+		t.Fatalf("error : maybe you forgot to register test client")
+	}
 
 	serverURL := "http://127.0.0.1:8080" + login.IntrospectRoute
 
